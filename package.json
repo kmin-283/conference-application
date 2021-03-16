@@ -1,0 +1,27 @@
+{
+  "name": "webrtc-learn5",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "cd public && bower install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bower": "^1.8.12",
+    "express": "^4.17.1",
+    "kurento-client": "^6.16.0",
+    "minimist": "^1.2.5",
+    "nodemon": "^2.0.7",
+    "socket.io": "^3.1.2",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "bower": "^1.8.12",
+    "eslint": "^7.22.0",
+    "eslint-config-google": "^0.14.0"
+  }
+}

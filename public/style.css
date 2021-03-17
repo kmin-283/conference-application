@@ -8,7 +8,6 @@
 }
 
 #meetingRoom:after {
-  content: '';
   display: block;
   clear: both;
 }

@@ -1,10 +1,10 @@
-'use strict'
-const { v4: uuidv4 } = require('uuid');
+"use strict"
+const { v4: uuidv4 } = require("uuid");
 const express = require("express");
 const app = express();
 const fs = require("fs");
 const url = require("url");
-const path = require('path');
+const path = require("path");
 
 let options = {
   key: fs.readFileSync("keys/server.key"),
@@ -34,14 +34,14 @@ let argv = minimist(process.argv.slice(2), {
 let asUrl = url.parse(argv.as_uri);
 let port = asUrl.port;
 
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   urlToken = uuidv4();
   res.redirect(`/${urlToken}`);
 });
 
 
-app.get('/:room', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.get("/:room", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.use(express.static("public"));
@@ -56,24 +56,24 @@ let io = require("socket.io")(server);
 io.on("connection", (socket) => {
   socket.on("message", (message) => {
     switch (message.event) {
-      case 'createRoom':
+      case "createRoom":
         createRoomReceive(socket, message.roomName);
         break;
-      case 'joinRoom':
+      case "joinRoom":
         joinRoom(socket, message.userName, message.roomName, (err) => {
           if (err) {
             console.log(err);
           }
         });
         break;
-      case 'receiveVideoFrom':
+      case "receiveVideoFrom":
         receiveVideoFrom(socket, message.userid, message.roomName, message.sdpOffer, err => {
           if (err) {
             console.log(err);
           }
         })
         break;
-      case 'candidate':
+      case "candidate":
         addIceCandidate(socket, message.userid, message.roomName, message.candidate, err => {
           if (err) {
             console.log(err);
@@ -114,16 +114,16 @@ function getKurentoClient(callback) {
 // 따라서 object처럼 뭔가 할 수 없음. 따로 해줘야 함.
 
 function getRoom(socket, roomname, callback) {
-  let myRoom = customRooms[roomname] || { length:0 }
-  let numClients = myRoom.length;
+  let myRoom = customRooms[roomname];
 
-  if (numClients == 0) {
+  if (myRoom == null) {
     socket.join(roomname);
-    customRooms[roomname] = {
-      length: 1
-    };
+    customRooms[roomname] = {};
     getKurentoClient((err, kurentocl) => {
       kurentocl.create("MediaPipeline", (err, pipeline) => {
+        if (err) {
+          return callback(err);
+        }
         customRooms[roomname].pipeline = pipeline;
         customRooms[roomname].participants = {};
         myRoom = customRooms[roomname];
@@ -132,7 +132,6 @@ function getRoom(socket, roomname, callback) {
     });
   } else {
     socket.join(roomname);
-    myRoom.length += 1;
     callback(null, myRoom);
   }
 }
@@ -142,7 +141,7 @@ function joinRoom(socket, username, roomname, callback) {
     if (err) {
       return callback(err);
     }
-    myRoom.pipeline.create('WebRtcEndpoint', (err, outgoingMedia) => {
+    myRoom.pipeline.create("WebRtcEndpoint", (err, outgoingMedia) => {
       if (err) {
         return callback(err);
       }
@@ -163,8 +162,8 @@ function joinRoom(socket, username, roomname, callback) {
         }
       }
 
-      user.outgoingMedia.on('OnIceCandidate', (event) => {
-        let candidate = kurento.register.complexTypes.IceCandidate(event.candidate);
+      user.outgoingMedia.on("OnIceCandidate", (event) => {
+        let candidate = kurento.getComplexType("IceCandidate")(event.candidate);
 
         socket.emit("message", {
           event: "candidate",
@@ -173,7 +172,7 @@ function joinRoom(socket, username, roomname, callback) {
         });
       });
 
-      socket.to(roomname).emit('message', {
+      socket.to(roomname).emit("message", {
         event: "newParticipantArrived",
         userid: user.id,
         username: user.name
@@ -206,15 +205,12 @@ function getEndpointForUser(socket, roomname, senderid, callback) {
   let asker = myRoom.participants[socket.id];
   let sender = myRoom.participants[senderid];
 
-  console.log(`myroom ${JSON.stringify(myRoom)}`);
-  console.log(`asker ${JSON.stringify(asker)}`);
-  console.log(`sender ${JSON.stringify(sender)}`);
-
   if (asker.id === sender.id) {
     return callback(null, asker.outgoingMedia);
   }
 
   if (asker.incomingMedia[sender.id]) {
+    console.log(socket.id, sender.id, asker, sender);
     sender.outgoingMedia.connect(asker.incomingMedia[sender.id], err => {
       if (err) {
         return callback(err);
@@ -222,19 +218,15 @@ function getEndpointForUser(socket, roomname, senderid, callback) {
       callback(null, asker.incomingMedia[sender.id]);
     })
   } else {
-    myRoom.pipeline.create('WebRtcEndpoint', (err, incoming) => {
+    myRoom.pipeline.create("WebRtcEndpoint", (err, incoming) => {
       if (err) {
         return callback(err);
       }
 
       asker.incomingMedia[sender.id] = incoming;
-
-      console.log(`***asker.incomingMedia[sender.id]*** = ${JSON.stringify(asker.incomingMedia[sender.id])}`);
       
-      let iceCandidateQueue = iceCandidateQueues[sender.id];
-      
-      console.log(`***iceCandidateQueue*** ${JSON.stringify(iceCandidateQueue)}`);
-      
+      let iceCandidateQueue = iceCandidateQueues[sender.id]; // 깃허브와 다른 부분.
+      console.log(iceCandidateQueue);
       if (iceCandidateQueue) {
         while (iceCandidateQueues.length) {
           let ice = iceCandidateQueue.shift();
@@ -242,11 +234,11 @@ function getEndpointForUser(socket, roomname, senderid, callback) {
         }
       }
 
-      incoming.on('OnIceCandidate', event => {
-        let candidate = kurento.register.complexTypes.IceCandidate(event.candidate);
+      incoming.on("OnIceCandidate", event => {
+        let candidate = kurento.getComplexType("IceCandidate")(event.candidate);
 
-        socket.emit('message', {
-          event: 'candidate',
+        socket.emit("message", {
+          event: "candidate",
           userid: sender.id,
           candidate: candidate,
         })
@@ -291,7 +283,7 @@ function addIceCandidate(socket, senderid, roomName, iceCandidate, callback) {
   let user = customRooms[roomName].participants[socket.id];
 
   if (user != null) {
-    let candidate = kurento.register.complexTypes.IceCandidate(iceCandidate);
+    let candidate = kurento.getComplexType("IceCandidate")(iceCandidate);
 
     if (senderid === user.id) {
       if (user.outgoingMedia) {

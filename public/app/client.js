@@ -1,18 +1,17 @@
 "use strict"
+
 let divRoomSelection = document.getElementById("roomSelection");
-
 let divMeetingRoom = document.getElementById("meetingRoom");
-let btnRegister = document.getElementById("register");
 let inputName = document.getElementById("name");
+let btnRegister = document.getElementById("register");
 
-//variables
 let roomName;
 let userName;
 let participants = {};
 
-const socket = io();
+let socket = io();
 
-btnRegister.onclick = function() {
+btnRegister.onclick = function () {
   userName = inputName.value;
   if (userName == "") {
     alert("이름은 반드시 입력하셔야 합니다");
@@ -20,34 +19,36 @@ btnRegister.onclick = function() {
     const currRoom = window.location.href;
     let message = {
       event: "createRoom",
-      roomName: currRoom
+      roomName: currRoom,
     };
+
     sendMessage(message);
   }
-}
+};
 
-socket.on("message", message => {
+socket.on("message", (message) => {
   switch (message.event) {
     case "roomCreated":
       joinRoom(message.roomPath);
       break;
+
     case "newParticipantArrived":
-      console.log(message);
       receiveVideo(message.userid, message.username);
       break;
+
     case "existingParticipants":
-      console.log(message);
       onExistingParticipants(message.userid, message.existingUsers);
       break;
+
     case "receiveVideoAnswer":
-      console.log(message);
       onReceiveVideoAnswer(message.senderid, message.sdpAnswer);
       break;
+
     case "candidate":
       addIceCandidate(message.userid, message.candidate);
       break;
   }
-})
+});
 
 function joinRoom(roomPath) {
   roomName = roomPath;
@@ -62,10 +63,6 @@ function joinRoom(roomPath) {
 
   divRoomSelection.style = "display: none";
   divMeetingRoom.style = "display: block";
-}
-
-function sendMessage(message) {
-  socket.emit("message", message);
 }
 
 function receiveVideo(userid, username) {
@@ -84,44 +81,47 @@ function receiveVideo(userid, username) {
     id: userid,
     username: username,
     video: video,
-    rtcPeer: null
+    rtcPeer: null,
   };
 
   participants[user.id] = user;
 
+  let options = {
+    remoteVideo: video,
+    onicecandidate: onIceCandidate,
+  };
+
+  user.rtcPeer = kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(
+    options,
+    function (err) {
+      if (err) {
+        return console.error(err);
+      }
+      this.generateOffer(onOffer);
+    }
+  );
+
+  var onOffer = function (err, offer, wp) {
+    console.log("sending offer");
+    var message = {
+      event: "receiveVideoFrom",
+      userid: user.id,
+      roomName: roomName,
+      sdpOffer: offer,
+    };
+    sendMessage(message);
+  };
+
   function onIceCandidate(candidate, wp) {
+    console.log("sending ice candidates");
     let message = {
       event: "candidate",
       userid: user.id,
       roomName: roomName,
-      candidate: candidate
-    }
+      candidate: candidate,
+    };
     sendMessage(message);
   }
-
-  let options = {
-    remoteVideo: video,
-    onicecandidate: onIceCandidate
-  };
-
-  user.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options, function(err) {
-    if (err) {
-      return console.error(err)
-    }
-    this.generateOffer(function(err, offer, wp) {
-      if (err) {
-        return console.error(err);
-      }
-
-      let message = {
-        event: "receiveVideoFrom",
-        userid: user.id,
-        roomName: roomName,
-        sdpOffer: offer,
-      };
-      sendMessage(message);
-    });
-  });
 }
 
 function onExistingParticipants(userid, existingUsers) {
@@ -152,48 +152,51 @@ function onExistingParticipants(userid, existingUsers) {
         maxWidth: 320,
         maxFrameRate: 30,
         minFrameRate: 30,
+      },
+    },
+  };
+
+  let options = {
+    localVideo: video,
+    mediaConstraints: constraints,
+    onicecandidate: onIceCandidate,
+  };
+
+  user.rtcPeer = kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(
+    options,
+    function (err) {
+      if (err) {
+        return console.error(err);
       }
+      this.generateOffer(onOffer);
     }
-  }
+  );
+
+  existingUsers.forEach(function (element) {
+    receiveVideo(element.id, element.name);
+  });
+
+  let onOffer = function (err, offer, wp) {
+    console.log("sending offer");
+    let message = {
+      event: "receiveVideoFrom",
+      userid: user.id,
+      roomName: roomName,
+      sdpOffer: offer,
+    };
+    sendMessage(message);
+  };
 
   function onIceCandidate(candidate, wp) {
+    console.log("sending ice candidates");
     let message = {
       event: "candidate",
       userid: user.id,
       roomName: roomName,
-      candidate: candidate
-    }
+      candidate: candidate,
+    };
     sendMessage(message);
   }
-
-  let options = {
-    localVideo: video,
-    onicecandidate: onIceCandidate,
-    mediaConstraints: constraints,
-  };
-
-  user.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options, function(err) {
-    if (err) {
-      return console.error(err);
-    }
-    this.generateOffer(function (err, offer, wp) {
-      if (err) {
-        return console.error(err);
-      }
-
-      let message = {
-        event: "receiveVideoFrom",
-        userid: user.id,
-        roomName: roomName,
-        sdpOffer: offer,
-      };
-      sendMessage(message);
-    });
-  });
-
-  existingUsers.forEach((element) => {
-    receiveVideo(element.id, element.name);
-  });
 }
 
 function onReceiveVideoAnswer(senderid, sdpAnswer) {
@@ -202,4 +205,10 @@ function onReceiveVideoAnswer(senderid, sdpAnswer) {
 
 function addIceCandidate(userid, candidate) {
   participants[userid].rtcPeer.addIceCandidate(candidate);
+}
+
+// utilities
+function sendMessage(message) {
+  console.log("sending " + message.event + " message to server");
+  socket.emit("message", message);
 }

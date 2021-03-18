@@ -1,28 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebRTC Conference</title>
-  <link rel="stylesheets" href="style.css"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheets" href="style.css" />
 </head>
-
 <body>
-  <h1>WebRTC Conference</h1>
+    <h1>WebRTC Conference</h1>
+    <div id="roomSelection" style="display: block">
+        <label>유저 이름</label>
+        <input id="name" placeholder="이름을 입력해주십시오">
+        <button id="register">입장</button>
+      </div>
+    
+      <div id="meetingRoom" style="display: none"></div>
 
-  <div id="roomSelection" style="display: block">
-    <label>유저 이름</label>
-    <input id="name" placeholder="이름을 입력해주십시오">
-    <button id="register">입장</button>
-  </div>
+      <script src="resource/adapter-latest.js"></script>
+      <script src="resource/kurento-utils.min.js"></script>
+      <script src="/socket.io/socket.io.js"></script>
+      <script src="app/client.js"></script>
 
-  <div id="meetingRoom" style="display: none"></div>
-
-  <script src="bower_components/socket.io-client/dist/socket.io.js"></script>
-  <script src="bower_components/webrtc-adapter/release/adapter.js"></script>
-  <script src="bower_components/kurento-utils/js/kurento-utils.min.js"></script>
-  <script src="app/client.js"></script>
 </body>
-
 </html>

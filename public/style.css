@@ -1,13 +1,13 @@
-
 #meetingRoom div {
-  text-align: center;
+    text-align: center;
 }
 
 .videoContainer {
-  float: left;
+    float: left;
 }
 
 #meetingRoom:after {
-  display: block;
-  clear: both;
+    content: '';
+    display: block;
+    clear: both;
 }

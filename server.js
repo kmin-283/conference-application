@@ -1,5 +1,4 @@
 "use strict";
-
 const { v4: uuidv4 } = require("uuid");
 const express = require("express");
 const app = express();
@@ -90,6 +89,11 @@ io.on("connection", (socket) => {
           }
         );
         break;
+
+    case "closeCall":
+      closeCall(socket, message.userName, message.roomName);
+      break;
+
     }
   });
 });
@@ -325,6 +329,21 @@ function addIceCandidate(socket, senderid, roomname, iceCandidate, callback) {
     callback(new Error("addIceCandidate failed"));
   }
 }
+
+function closeCall(socket, username, roomname) {
+  let room = conferenceRooms[roomname];
+  delete room.participants[socket.id];
+  socket.leave(roomname);
+
+  let message = {
+    event: "closeCall",
+    userid: socket.id,
+  };
+
+  socket.to(roomname).emit("message", message);
+}
+
+
 
 server.listen(port, function () {
   console.log(`server starting ${argv.as_uri}`);

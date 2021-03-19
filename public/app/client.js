@@ -1,15 +1,52 @@
-"use strict"
+"use strict";
 
 let divRoomSelection = document.getElementById("roomSelection");
 let divMeetingRoom = document.getElementById("meetingRoom");
 let inputName = document.getElementById("name");
 let btnRegister = document.getElementById("register");
 
+let controlSection = document.getElementById("controlSection");
+let btnUrlCopy = document.getElementById("urlCopy");
+let btnCloseCall = document.getElementById("closeCall");
+
+
+
+
 let roomName;
 let userName;
 let participants = {};
 
 let socket = io();
+
+
+btnUrlCopy.onclick = function () {
+  let dummy = document.createElement("input");
+  let text = window.location.href;
+
+  document.body.appendChild(dummy);
+  dummy.value = text;
+  dummy.select();
+  document.execCommand("copy");
+  document.body.removeChild(dummy);
+  alert("URL이 클립보드에 복사되었습니다");
+};
+
+btnCloseCall.onclick = function() {
+  let message = {
+    event: "closeCall",
+    userName: userName,
+    roomName: roomName,
+  };
+
+  if (confirm("통화를 종료하시겠습니까?")) {
+    sendMessage(message);
+    closeCall();
+    controlSection.style = "display: none";
+    divMeetingRoom.style = "display: none";
+    alert("감사합니다.");
+  }
+}
+
 
 btnRegister.onclick = function () {
   userName = inputName.value;
@@ -47,6 +84,9 @@ socket.on("message", (message) => {
     case "candidate":
       addIceCandidate(message.userid, message.candidate);
       break;
+    case "closeCall":
+      closeCall(message);
+      break;
   }
 });
 
@@ -82,6 +122,7 @@ function receiveVideo(userid, username) {
     username: username,
     video: video,
     rtcPeer: null,
+    videoContainer: div,
   };
 
   participants[user.id] = user;
@@ -141,6 +182,7 @@ function onExistingParticipants(userid, existingUsers) {
     username: userName,
     video: video,
     rtcPeer: null,
+    videoContainer: div,
   };
 
   participants[user.id] = user;
@@ -149,7 +191,7 @@ function onExistingParticipants(userid, existingUsers) {
     audio: true,
     video: {
       mandatory: {
-        maxWidth: 320,
+        maxWidth: 540,
         maxFrameRate: 30,
         minFrameRate: 30,
       },
@@ -168,7 +210,11 @@ function onExistingParticipants(userid, existingUsers) {
       if (err) {
         return console.error(err);
       }
-      this.generateOffer(onOffer);
+      let check = confirm("상대방에게 화면을 송출하시겠습니까?");
+      if (check) {
+        this.generateOffer(onOffer);
+        controlSection.style = "display: block";
+      }
     }
   );
 
@@ -211,4 +257,18 @@ function addIceCandidate(userid, candidate) {
 function sendMessage(message) {
   console.log("sending " + message.event + " message to server");
   socket.emit("message", message);
+}
+
+function closeCall(message) {
+  if (message == null) {
+    for (let user in participants) {
+      participants[user].rtcPeer.dispose();
+      participants[user].rtcPeer = null;
+      participants[user].videoContainer.remove();
+    }
+  } else {
+    participants[message.userid].rtcPeer.dispose();
+    participants[message.userid].rtcPeer = null;
+    participants[message.userid].videoContainer.remove();
+  }
 }

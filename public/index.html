@@ -1,29 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheets" href="style.css" />
-</head>
-<body>
-    <h1>WebRTC Conference</h1>
-    <div id="roomSelection" style="display: block">
-        <label>유저 이름</label>
-        <input id="name" placeholder="이름을 입력해주십시오">
-        <button id="register">입장</button>
-      </div>
-    
-      <div id="meetingRoom" style="display: none"></div>
-      <div id="controlSection" style="display: none">
-        <button id="urlCopy">URL 복사</button>
-        <button id="closeCall">통화 종료</button>
-      </div>
 
-      <script src="resource/adapter-latest.js"></script>
-      <script src="resource/kurento-utils.min.js"></script>
-      <script src="/socket.io/socket.io.js"></script>
-      <script src="app/client.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="app/style.css" />
+</head>
+
+<body>
+  <h1>WebRTC Conference</h1>
+  <div id="roomSelection" style="display: block">
+    <label>유저 이름</label>
+    <input id="name" placeholder="이름을 입력해주십시오">
+    <button id="register">입장</button>
+  </div>
+
+  <div id="meetingRoom" style="display: none">
+    <div class="content">
+      <div class="messages"></div>
+      <form class="footer" onsubmit="return false;">
+        <input type="text" placeholder="Your message..">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+    <template data-template="message">
+      <div class="message">
+        <div class="message__name"></div>
+        <div class="message__bubble"></div>
+      </div>
+    </template>
+  </div>
+  <div id="controlSection" style="display: none">
+    <button id="urlCopy">URL 복사</button>
+    <button id="closeCall">통화 종료</button>
+    <button id="channel">채팅</button>
+  </div>
+
+  <script src="resource/adapter-latest.js"></script>
+  <script src="resource/kurento-utils.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app/client.js"></script>
 
 </body>
+
 </html>

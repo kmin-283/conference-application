@@ -40,7 +40,6 @@ app.get("/", (req, res) => {
   res.redirect(`${randomUrl}`);
 });
 
-
 app.get("/:room", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -89,14 +88,87 @@ io.on("connection", (socket) => {
           }
         );
         break;
+      // case "channel":
+      //   channelCreateOrJoin(socket, message.roomName);
+      //   break;
 
-    case "closeCall":
-      closeCall(socket, message.userName, message.roomName);
-      break;
+      case "channelSdpOffer":
+        channelSdpOffer(socket, message.sdpOffer, message.roomName);
+        break;
 
+      case "channelSdpAnswer":
+        channelSdpAnswer(socket, message.sdpAnswer, message.user);
+        break;
+
+      case "channelIceCandidate":
+        channelIceCandidate(socket, message.candidate, message.userName);
+        break;
+
+      case "closeCall":
+        closeCall(socket, message.userName, message.roomName);
+        break;
     }
   });
 });
+
+let candidatesList = {};
+
+function channelSdpOffer(socket, sdpOffer, roomname) {
+  candidatesList[socket.id] = [];
+  for (const username in conferenceRooms[roomname].participants) {
+    let user = conferenceRooms[roomname].participants[username];
+    if (user.id !== socket.id) {
+      if (candidatesList[user.id] == null) {
+        candidatesList[user.id] = [];
+      }
+      candidatesList[user.id].push(socket); //요청을 보낸 유저를 요청을 받는 유저에게 추가해둠.
+    }
+  }
+
+  socket.to(roomname).emit("message", {
+    event: "newChannelSdpOffer",
+    sdpOffer: sdpOffer,
+    user: socket.id,
+  });
+}
+
+function channelSdpAnswer(socket, sdpAnswer, user) {
+  // 답장을 보내는 유저.
+  candidatesList[user].push(socket);
+  socket.to(user).emit("message", {
+    event: "newChannelSdpAnswer",
+    sdpAnswer: sdpAnswer,
+  });
+}
+
+function channelIceCandidate(socket, candidate) {
+  if (candidatesList[socket.id]) {
+    candidatesList[socket.id].forEach((remoteClient) => {
+      remoteClient.emit("message", {
+        event: "newChannelIceCandidate",
+        candidate: candidate,
+      });
+    });
+    candidatesList[socket.id] = [];
+  }
+}
+
+// function channelCreateOrJoin(socket, roomname) {
+//   const myRoom = conferenceRooms[roomname];
+
+//   if (myRoom && myRoom.channel == null) {
+//     myRoom.channel = true;
+//     socket.emit("message", {
+//       event: "createOrJoinChannel",
+//       type: "create",
+//     });
+//   } else if (myRoom) {
+//     socket.emit("message", {
+//       event: "createOrJoinChannel",
+//       type: "join",
+//     });
+//   }
+// }
 
 function createRoomReceive(socket, roomName) {
   const roomPath = url.parse(roomName).path;
@@ -211,6 +283,7 @@ function joinRoom(socket, username, roomname, callback) {
       socket.emit("message", {
         event: "existingParticipants",
         userid: user.id,
+        numberOfClients: myRoom.length,
         existingUsers: existingUsers,
       });
 
@@ -224,7 +297,6 @@ function receiveVideoFrom(socket, userid, roomname, sdpOffer, callback) {
     if (err) {
       return callback(err);
     }
-
     endpoint.processOffer(sdpOffer, (err, sdpAnswer) => {
       if (err) {
         return callback(err);
@@ -342,8 +414,6 @@ function closeCall(socket, username, roomname) {
 
   socket.to(roomname).emit("message", message);
 }
-
-
 
 server.listen(port, function () {
   console.log(`server starting ${argv.as_uri}`);
